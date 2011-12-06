@@ -50,7 +50,6 @@ except ImportError:
         from django.utils import simplejson as json
     except ImportError:
         import json
-_parse_json = json.loads
 
 # Find a query string parser
 try:
@@ -186,7 +185,7 @@ class GraphAPI(object):
         except urllib2.HTTPError, e:
             data = e.read() # Facebook sends OAuth errors as 400, and urllib2 throws an exception, we want a GraphAPIError
         try:
-            response = _parse_json(data)
+            response = json.loads(data)
             if response and response.get("error"):
                 raise GraphAPIError(response["error"].get("code", 1),
                                     response["error"]["message"])
@@ -246,14 +245,14 @@ class GraphAPI(object):
             file = urllib2.urlopen("https://graph.facebook.com/" + path + "?" +
                                   urllib.urlencode(args), post_data)
         except urllib2.HTTPError, e:
-            response = _parse_json( e.read() )
+            response = json.loads( e.read() )
             raise GraphAPIError(response["error"]["type"],
                     response["error"]["message"])
 
         try:
             fileInfo = file.info()
             if fileInfo.maintype == 'text':
-                response = _parse_json(file.read())
+                response = json.loads(file.read())
             elif fileInfo.maintype == 'image':
                 mimetype = fileInfo['content-type']
                 response = {
@@ -295,7 +294,7 @@ class GraphAPI(object):
         file = urllib.urlopen("https://api.facebook.com/method/" + path + "?" +
                               urllib.urlencode(args), post_data)
         try:
-            response = _parse_json(file.read())
+            response = json.loads(file.read())
         finally:
             file.close()
         if response and response.get("error"):
@@ -326,7 +325,7 @@ class GraphAPI(object):
                               urllib.urlencode(args), post_data)
         try:
             content  = file.read()
-            response = _parse_json(content)
+            response = json.loads(content)
             #Return a list if success, return a dictionary if failed
             if type(response) is dict and "error_code" in response:
                 raise GraphAPIError(response["error_code"],response["error_msg"])
@@ -404,7 +403,7 @@ def parse_signed_request(signed_request, app_secret):
     except TypeError:
         return False # raise ValueError('signed_request had corrupted payload')
 
-    data = _parse_json(data)
+    data = json.loads(data)
     if data.get('algorithm', '').upper() != 'HMAC-SHA256':
         return False # raise ValueError('signed_request used unknown algorithm')
 
