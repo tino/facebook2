@@ -420,6 +420,32 @@ def auth_url(app_id, canvas_url, perms = None):
         kvps['scope'] = ",".join(perms)
     return url + urllib.urlencode(kvps)
 
+
+def get_access_token(code, redirect_uri, application_id, application_secret):
+    """
+    Get an access_token with a code as described in the *server-side flow*
+    on http://developers.facebook.com/docs/authentication/.
+
+    Raise a GraphAPIError if an access_token can't be obtained.
+    """
+    args = {
+        'client_id': application_id,
+        'client_secret': application_secret,
+        'code': code,
+        'redirect_uri': redirect_uri,
+    }
+    response = urllib.urlopen("https://graph.facebook.com/oauth/access_token"+
+        "?%s" % urllib.urlencode(args))
+    data = response.read()
+    if "error" in data:
+        data = json.loads(data)
+        raise GraphAPIError(data['error']['type'], data['error']['message'])
+
+    # No error, data is in querysting format...
+    data = parse_qs(data)
+    return data['access_token'][0], data['expires'][0]
+
+
 def get_app_access_token(application_id, application_secret):
     """
     Get the access_token for the app that can be used for insights and creating test users
