@@ -342,128 +342,142 @@ class GraphAPIError(Exception):
         Exception.__init__(self, message)
         self.type = type
 
-def get_user_from_cookie(cookies, app_id, app_secret):
-    """Parses the cookie set by the official Facebook JavaScript SDK.
 
-    cookies should be a dictionary-like object mapping cookie names to
-    cookie values.
+class AuthError(GraphAPIError):
+    pass
 
-    If the user is logged in via Facebook, we return a dictionary with the
-    keys "uid" and "access_token". The former is the user's Facebook ID,
-    and the latter can be used to make authenticated requests to the Graph API.
-    If the user is not logged in, we return None.
 
-    Download the official Facebook JavaScript SDK at
-    http://github.com/facebook/connect-js/. Read more about Facebook
-    authentication at http://developers.facebook.com/docs/authentication/.
+class Auth(object):
     """
-    cookie = cookies.get("fbsr_" + app_id, "")
-    if not cookie: return None
-    parsed_request = parse_signed_request(cookie, app_secret)
-    args = {
-        "client_id": app_id,
-        "client_secret": app_secret,
-        "code": parsed_request["code"],
-        "redirect_uri":""
-    }
-    # We would use GraphAPI.request() here, except for that the fact that the
-    # response is a key-value pair, and not JSON.
-    response = urllib.urlopen("https://graph.facebook.com/oauth/access_token" +
-                              "?" + urllib.urlencode(args))
-    query_str = parse_qs(response.read())
-    if "access_token" in query_str:
-        result = {
-            "uid":parsed_request["user_id"],
-            "issued_at":parsed_request["issued_at"],
-            "access_token":query_str["access_token"][0],
+    Class for dealing with authentication.
+
+    It is setup with the app_id and app_secret.
+    """
+    oauth_url = 'https://graph.facebook.com/oauth/access_token'
+
+    def __init__(self, app_id, app_secret):
+        self.app_id = app_id,
+        self.app_secret = app_secret
+
+    def get_user_from_cookie(self, cookies):
+        """Parses the cookie set by the official Facebook JavaScript SDK.
+        
+        ``cookies`` should be a dictionary-like object mapping cookie names
+        to cookie values.
+        
+        If the user is logged in via Facebook, we return a dictionary with
+        the keys ``uid`` and ``access_token``. The former is the user's
+        Facebook ID, and the latter can be used to make authenticated requests
+        to the Graph API. If the user is not logged in, we return None.
+        
+        Download the official Facebook JavaScript SDK at
+        http://github.com/facebook/connect-js/. Read more about Facebook
+        authentication at http://developers.facebook.com/docs/authentication/.
+        """
+        cookie = cookies.get("fbsr_" + self.app_id, "")
+        if not cookie: return None
+        parsed_request = self.parse_signed_request(cookie, self.app_secret)
+        args = {
+            "client_id": self.app_id,
+            "client_secret": self.app_secret,
+            "code": parsed_request["code"],
+            "redirect_uri":""
         }
-        if "expires" in query_str:
-            result["expires"] = query_str["expires"][0]
-        return result
-    else:
-        return None
+        # We would use GraphAPI.request() here, except for that the fact that the
+        # response is a key-value pair, and not JSON.
+        response = urllib.urlopen(self.oauth_url + "?" +
+                                                urllib.urlencode(args))
+        query_str = parse_qs(response.read())
+        if "access_token" in query_str:
+            result = {
+                "uid": parsed_request["user_id"],
+                "issued_at": parsed_request["issued_at"],
+                "access_token": query_str["access_token"][0],
+            }
+            if "expires" in query_str:
+                result["expires"] = query_str["expires"][0]
+            return result
+        else:
+            return None
 
-def parse_signed_request(signed_request, app_secret):
-    """ Return dictionary with signed request data.
+    def parse_signed_request(self, signed_request):
+        """ Return dictionary with signed request data.
+        
+        We return a dictionary containing the information in the
+        signed_request. This will include a user_id if the user has authorised
+        your application, as well as any information requested in the scope.
+        
+        If the signed_request is malformed or corrupted, a ValueError is
+        raised.
+        """
+        try:
+            l = signed_request.split('.', 2)
+            encoded_sig = str(l[0])
+            payload = str(l[1])
+            sig = base64.urlsafe_b64decode(encoded_sig + "=" * ((4 - len(encoded_sig) % 4) % 4))
+            data = base64.urlsafe_b64decode(payload + "=" * ((4 - len(payload) % 4) % 4))
+        except IndexError:
+            raise ValueError('signed_request malformed')
+        except TypeError:
+            raise ValueError('signed_request had corrupted payload')
 
-    We return a dictionary containing the information in the signed_request. This will
-    include a user_id if the user has authorised your application, as well as any
-    information requested in the scope.
-
-    If the signed_request is malformed or corrupted, False is returned.
-    """
-    try:
-        l = signed_request.split('.', 2)
-        encoded_sig = str(l[0])
-        payload = str(l[1])
-        sig = base64.urlsafe_b64decode(encoded_sig + "=" * ((4 - len(encoded_sig) % 4) % 4))
-        data = base64.urlsafe_b64decode(payload + "=" * ((4 - len(payload) % 4) % 4))
-    except IndexError:
-        raise ValueError('signed_request malformed')
-    except TypeError:
-        raise ValueError('signed_request had corrupted payload')
-
-    data = json.loads(data)
-    if data.get('algorithm', '').upper() != 'HMAC-SHA256':
-        raise ValueError('signed_request used unknown algorithm')
-
-    expected_sig = hmac.new(app_secret, msg=payload, digestmod=hashlib.sha256).digest()
-    if sig != expected_sig:
-        raise ValueError('signed_request had signature mismatch')
-
-    return data
-
-def auth_url(app_id, canvas_url, perms = None):
-    url = "https://www.facebook.com/dialog/oauth?"
-    kvps = {'client_id': app_id, 'redirect_uri': canvas_url}
-    if perms:
-        kvps['scope'] = ",".join(perms)
-    return url + urllib.urlencode(kvps)
-
-
-def get_access_token(code, redirect_uri, application_id, application_secret):
-    """
-    Get an access_token with a code as described in the *server-side flow*
-    on http://developers.facebook.com/docs/authentication/.
-
-    Raise a GraphAPIError if an access_token can't be obtained.
-    """
-    args = {
-        'client_id': application_id,
-        'client_secret': application_secret,
-        'code': code,
-        'redirect_uri': redirect_uri,
-    }
-    response = urllib.urlopen("https://graph.facebook.com/oauth/access_token"+
-        "?%s" % urllib.urlencode(args))
-    data = response.read()
-    if "error" in data:
         data = json.loads(data)
-        raise GraphAPIError(data['error']['type'], data['error']['message'])
+        if data.get('algorithm', '').upper() != 'HMAC-SHA256':
+            raise ValueError('signed_request used unknown algorithm')
 
-    # No error, data is in querysting format...
-    data = parse_qs(data)
-    return data['access_token'][0], data['expires'][0]
+        expected_sig = hmac.new(self.app_secret, msg=payload, digestmod=hashlib.sha256).digest()
+        if sig != expected_sig:
+            raise ValueError('signed_request had signature mismatch')
 
+        return data
 
-def get_app_access_token(application_id, application_secret):
-    """
-    Get the access_token for the app that can be used for insights and creating test users
-    application_id = retrieved from the developer page
-    application_secret = retrieved from the developer page
-    returns the application access_token
-    """
-    # Get an app access token
-    args = {'grant_type':'client_credentials',
-            'client_id':application_id,
-            'client_secret':application_secret}
+    def auth_url(self, canvas_url, perms = None):
+        url = "https://www.facebook.com/dialog/oauth?"
+        kvps = {'client_id': self.app_id, 'redirect_uri': canvas_url}
+        if perms:
+            kvps['scope'] = ",".join(perms)
+        return url + urllib.urlencode(kvps)
 
-    file = urllib2.urlopen("https://graph.facebook.com/oauth/access_token?" +
-                              urllib.urlencode(args))
+    def get_access_token(self, code, redirect_uri):
+        """Get an access_token with a code as described in the *server-side
+        flow* on http://developers.facebook.com/docs/authentication/.
 
-    try:
-        result = file.read().split("=")[1]
-    finally:
-        file.close()
+        Raise a GraphAPIError if an access_token can't be obtained.
+        """
+        args = {
+            'client_id': self.app_id,
+            'client_secret': self.app_secret,
+            'code': code,
+            'redirect_uri': redirect_uri,
+        }
+        response = urllib.urlopen(self.oauth_url+
+            "?%s" % urllib.urlencode(args))
+        data = response.read()
+        if "error" in data:
+            data = json.loads(data)
+            raise AuthError(data['error']['type'], data['error']['message'])
 
-    return result
+        # No error, data is in querysting format...
+        data = parse_qs(data)
+        return data['access_token'][0], data['expires'][0]
+
+    def get_app_access_token(self):
+        """Get the access_token for the app that can be used for insights and
+        creating test users application_id = retrieved from the developer page
+        application_secret = retrieved from the developer page returns the
+        application access_token
+        """
+        # Get an app access token
+        args = {'grant_type':'client_credentials',
+                'client_id':self.app_id,
+                'client_secret':self.app_secret}
+
+        file = urllib2.urlopen("https://graph.facebook.com/oauth/access_token?" +
+                                  urllib.urlencode(args))
+
+        try:
+            result = file.read().split("=")[1]
+        finally:
+            file.close()
+
+        return result
