@@ -57,6 +57,10 @@ try:
 except ImportError:
     from cgi import parse_qs
 
+# Constants
+OAUTH_URL = 'https://graph.facebook.com/oauth/access_token'
+GRAPH_URL = 'https://graph.facebook.com/'
+
 class GraphAPI(object):
     """A client for the Facebook Graph API.
 
@@ -176,7 +180,7 @@ class GraphAPI(object):
         }
         post_args.update(kwargs)
         content_type, body = self._encode_multipart_form(post_args)
-        req = urllib2.Request("https://graph.facebook.com/%s/photos" % object_id, data=body)
+        req = urllib2.Request("%s%s/photos" % (GRAPH_URL, object_id), data=body)
         req.add_header('Content-Type', content_type)
         try:
             data = urllib2.urlopen(req).read()
@@ -242,7 +246,7 @@ class GraphAPI(object):
                 args["access_token"] = self.access_token
         post_data = None if post_args is None else urllib.urlencode(post_args)
         try:
-            file = urllib2.urlopen("https://graph.facebook.com/" + path + "?" +
+            file = urllib2.urlopen(GRAPH_URL + path + "?" +
                                   urllib.urlencode(args), post_data)
         except urllib2.HTTPError, e:
             response = json.loads( e.read() )
@@ -353,52 +357,42 @@ class Auth(object):
 
     It is setup with the app_id and app_secret.
     """
-    oauth_url = 'https://graph.facebook.com/oauth/access_token'
 
     def __init__(self, app_id, app_secret):
         self.app_id = app_id,
         self.app_secret = app_secret
 
-    def get_user_from_cookie(self, cookies):
+    def get_user_from_cookie(self, cookies, validate=False):
         """Parses the cookie set by the official Facebook JavaScript SDK.
         
         ``cookies`` should be a dictionary-like object mapping cookie names
         to cookie values.
         
         If the user is logged in via Facebook, we return a dictionary with
-        the keys ``uid`` and ``access_token``. The former is the user's
+        the keys ``user_id`` and ``access_token``. The former is the user's
         Facebook ID, and the latter can be used to make authenticated requests
         to the Graph API. If the user is not logged in, we return None.
         
-        Download the official Facebook JavaScript SDK at
-        http://github.com/facebook/connect-js/. Read more about Facebook
-        authentication at http://developers.facebook.com/docs/authentication/.
+        If ``validate`` is True, a request will be made to Facebook to
+        validate that the user is still logged in. In this case, a valid
+        ``access_token`` is added to the return dictionairy, as wel as an
+        ``expires`` string, the seconds the access_token is valid for.
+        
+        Read more about Facebook authentication at 
+        http://developers.facebook.com/docs/authentication/.
         """
         cookie = cookies.get("fbsr_" + self.app_id, "")
         if not cookie: return None
-        parsed_request = self.parse_signed_request(cookie, self.app_secret)
-        args = {
-            "client_id": self.app_id,
-            "client_secret": self.app_secret,
-            "code": parsed_request["code"],
-            "redirect_uri":""
-        }
-        # We would use GraphAPI.request() here, except for that the fact that the
-        # response is a key-value pair, and not JSON.
-        response = urllib.urlopen(self.oauth_url + "?" +
-                                                urllib.urlencode(args))
-        query_str = parse_qs(response.read())
-        if "access_token" in query_str:
-            result = {
-                "uid": parsed_request["user_id"],
-                "issued_at": parsed_request["issued_at"],
-                "access_token": query_str["access_token"][0],
-            }
-            if "expires" in query_str:
-                result["expires"] = query_str["expires"][0]
-            return result
-        else:
-            return None
+        try:
+            user_data = self.parse_signed_request(cookie)
+        except ValueError, e:
+            raise AuthError('Error parsing fbsr-cookie', e)
+        
+        if validate:
+            data = self.get_access_token(user_data['code'])
+            user_data.update(data)
+        
+        return user_data
 
     def parse_signed_request(self, signed_request):
         """ Return dictionary with signed request data.
@@ -425,7 +419,8 @@ class Auth(object):
         if data.get('algorithm', '').upper() != 'HMAC-SHA256':
             raise ValueError('signed_request used unknown algorithm')
 
-        expected_sig = hmac.new(self.app_secret, msg=payload, digestmod=hashlib.sha256).digest()
+        expected_sig = hmac.new(self.app_secret, msg=payload, 
+                                    digestmod=hashlib.sha256).digest()
         if sig != expected_sig:
             raise ValueError('signed_request had signature mismatch')
 
@@ -450,8 +445,7 @@ class Auth(object):
             'code': code,
             'redirect_uri': redirect_uri,
         }
-        response = urllib.urlopen(self.oauth_url+
-            "?%s" % urllib.urlencode(args))
+        response = urllib.urlopen(OAUTH_URL + "?%s" % urllib.urlencode(args))
         data = response.read()
         if "error" in data:
             data = json.loads(data)
@@ -459,7 +453,8 @@ class Auth(object):
 
         # No error, data is in querysting format...
         data = parse_qs(data)
-        return data['access_token'][0], data['expires'][0]
+        return dict(access_token=data['access_token'][0],
+                    expires=data['expires'][0])
 
     def get_app_access_token(self):
         """Get the access_token for the app that can be used for insights and
@@ -472,7 +467,7 @@ class Auth(object):
                 'client_id':self.app_id,
                 'client_secret':self.app_secret}
 
-        file = urllib2.urlopen("https://graph.facebook.com/oauth/access_token?" +
+        file = urllib2.urlopen(OAUTH_URL + "?" +
                                   urllib.urlencode(args))
 
         try:
