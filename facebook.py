@@ -358,9 +358,10 @@ class Auth(object):
     It is setup with the app_id and app_secret.
     """
 
-    def __init__(self, app_id, app_secret):
-        self.app_id = app_id,
+    def __init__(self, app_id, app_secret, redirect_uri):
+        self.app_id = app_id
         self.app_secret = app_secret
+        self.redirect_uri = redirect_uri
 
     def get_user_from_cookie(self, cookies, validate=False):
         """Parses the cookie set by the official Facebook JavaScript SDK.
@@ -433,7 +434,7 @@ class Auth(object):
             kvps['scope'] = ",".join(perms)
         return url + urllib.urlencode(kvps)
 
-    def get_access_token(self, code, redirect_uri):
+    def get_access_token(self, code, redirect_uri=None):
         """Get an access_token with a code as described in the *server-side
         flow* on http://developers.facebook.com/docs/authentication/.
 
@@ -443,7 +444,7 @@ class Auth(object):
             'client_id': self.app_id,
             'client_secret': self.app_secret,
             'code': code,
-            'redirect_uri': redirect_uri,
+            'redirect_uri': redirect_uri or self.redirect_uri,
         }
         response = urllib.urlopen(OAUTH_URL + "?%s" % urllib.urlencode(args))
         data = response.read()
