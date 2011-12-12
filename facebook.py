@@ -382,8 +382,10 @@ class Auth(object):
         Read more about Facebook authentication at 
         http://developers.facebook.com/docs/authentication/.
         """
-        cookie = cookies.get("fbsr_" + self.app_id, "")
-        if not cookie: return None
+        cookie = cookies.get("fbsr_" + self.app_id)
+        if not cookie:
+            return None
+
         try:
             user_data = self.parse_signed_request(cookie)
         except ValueError, e:
