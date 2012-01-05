@@ -176,9 +176,9 @@ class GraphAPI(object):
         object_id = album_id or "me"
         #it would have been nice to reuse self.request; but multipart is messy in urllib
         post_args = {
-				  'access_token': self.access_token,
-				  'source': image,
-				  'message': message
+            'access_token': self.access_token,
+            'source': image,
+            'message': message
         }
         post_args.update(kwargs)
         content_type, body = self._encode_multipart_form(post_args)
@@ -373,21 +373,21 @@ class Auth(object):
 
     def get_user_from_cookie(self, cookies, validate=False):
         """Parses the cookie set by the official Facebook JavaScript SDK.
-        
+
         ``cookies`` should be a dictionary-like object mapping cookie names
         to cookie values.
-        
+
         If the user is logged in via Facebook, we return a dictionary with
         the keys ``user_id`` and ``access_token``. The former is the user's
         Facebook ID, and the latter can be used to make authenticated requests
         to the Graph API. If the user is not logged in, we return None.
-        
+
         If ``validate`` is True, a request will be made to Facebook to
         validate that the user is still logged in. In this case, a valid
         ``access_token`` is added to the return dictionairy, as wel as an
         ``expires`` string, the seconds the access_token is valid for.
-        
-        Read more about Facebook authentication at 
+
+        Read more about Facebook authentication at
         http://developers.facebook.com/docs/authentication/.
         """
         cookie = cookies.get("fbsr_" + self.app_id)
@@ -398,20 +398,20 @@ class Auth(object):
             user_data = self.parse_signed_request(cookie)
         except ValueError, e:
             raise AuthError('Error parsing fbsr-cookie', e)
-        
+
         if validate:
             data = self.get_access_token(user_data['code'])
             user_data.update(data)
-        
+
         return user_data
 
     def parse_signed_request(self, signed_request):
         """ Return dictionary with signed request data.
-        
+
         We return a dictionary containing the information in the
         signed_request. This will include a user_id if the user has authorised
         your application, as well as any information requested in the scope.
-        
+
         If the signed_request is malformed or corrupted, a ValueError is
         raised.
         """
@@ -430,7 +430,7 @@ class Auth(object):
         if data.get('algorithm', '').upper() != 'HMAC-SHA256':
             raise ValueError('signed_request used unknown algorithm')
 
-        expected_sig = hmac.new(self.app_secret, msg=payload, 
+        expected_sig = hmac.new(self.app_secret, msg=payload,
                                     digestmod=hashlib.sha256).digest()
         if sig != expected_sig:
             raise ValueError('signed_request had signature mismatch')
