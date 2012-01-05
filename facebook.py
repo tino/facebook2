@@ -57,6 +57,8 @@ try:
 except ImportError:
     from cgi import parse_qs
 
+log = logging.getLogger('facebook-sdk')
+
 # Constants
 OAUTH_URL = 'https://graph.facebook.com/oauth/access_token'
 GRAPH_URL = 'https://graph.facebook.com/'
@@ -183,6 +185,7 @@ class GraphAPI(object):
         req = urllib2.Request("%s%s/photos" % (GRAPH_URL, object_id), data=body)
         req.add_header('Content-Type', content_type)
         try:
+            log.debug('facebook api call to %s' % req.get_full_url())
             data = urllib2.urlopen(req).read()
         #For Python 3 use this:
         #except urllib2.HTTPError as e:
@@ -209,7 +212,7 @@ class GraphAPI(object):
         CRLF = '\r\n'
         L = []
         for (key, value) in fields.items():
-            logging.debug("Encoding %s, (%s)%s" % (key, type(value), value))
+            # log.debug("Encoding %s, (%s)%s" % (key, type(value), value))
             if not value:
                 continue
             L.append('--' + BOUNDARY)
@@ -218,12 +221,12 @@ class GraphAPI(object):
                 L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
                 L.append('Content-Type: image/jpeg')
                 value = value.read()
-                logging.debug(type(value))
+                # log.debug(type(value))
             else:
                 L.append('Content-Disposition: form-data; name="%s"' % key)
             L.append('')
             if isinstance(value, unicode):
-                logging.debug("Convert to ascii")
+                # logging.debug("Convert to ascii")
                 value = value.encode('ascii')
             L.append(value)
         L.append('--' + BOUNDARY + '--')
@@ -246,8 +249,9 @@ class GraphAPI(object):
                 args["access_token"] = self.access_token
         post_data = None if post_args is None else urllib.urlencode(post_args)
         try:
-            file = urllib2.urlopen(GRAPH_URL + path + "?" +
-                                  urllib.urlencode(args), post_data)
+            url = GRAPH_URL + path + "?" + urllib.urlencode(args)
+            log.debug('facebook api call to %s' % url)
+            file = urllib2.urlopen(url, post_data)
         except urllib2.HTTPError, e:
             response = json.loads( e.read() )
             raise GraphAPIError(response["error"]["type"],
@@ -295,8 +299,10 @@ class GraphAPI(object):
         else:
             args["format"] = "json-strings"
         post_data = None if post_args is None else urllib.urlencode(post_args)
-        file = urllib.urlopen("https://api.facebook.com/method/" + path + "?" +
-                              urllib.urlencode(args), post_data)
+        url = "https://api.facebook.com/method/%s?%s" (path,
+                                                       urllib.urlencode(args))
+        log.debug('facebook api call to %s' % url)
+        file = urllib.urlopen(url, post_data)
         try:
             response = json.loads(file.read())
         finally:
@@ -324,9 +330,11 @@ class GraphAPI(object):
         post_data = None if post_args is None else urllib.urlencode(post_args)
 
         args["query"] = query
-        args["format"]="json"
-        file = urllib2.urlopen("https://api.facebook.com/method/fql.query?" +
-                              urllib.urlencode(args), post_data)
+        args["format"] = "json"
+        url = "https://api.facebook.com/method/fql.query?" + \
+                                                urllib.urlencode(args)
+        log.debug('facebook api call to %s' % url)
+        file = urllib2.urlopen(url, post_data)
         try:
             content  = file.read()
             response = json.loads(content)
@@ -448,7 +456,9 @@ class Auth(object):
             'code': code,
             'redirect_uri': redirect_uri or self.redirect_uri,
         }
-        response = urllib.urlopen(OAUTH_URL + "?%s" % urllib.urlencode(args))
+        url = OAUTH_URL + "?%s" % urllib.urlencode(args)
+        log.debug('facebook api call to %s' % url)
+        response = urllib.urlopen(url)
         data = response.read()
         if "error" in data:
             data = json.loads(data)
@@ -470,8 +480,9 @@ class Auth(object):
                 'client_id':self.app_id,
                 'client_secret':self.app_secret}
 
-        file = urllib2.urlopen(OAUTH_URL + "?" +
-                                  urllib.urlencode(args))
+        url = OAUTH_URL + "?%s" % urllib.urlencode(args)
+        log.debug('facebook api call to %s' % url)
+        file = urllib2.urlopen(url)
 
         try:
             result = file.read().split("=")[1]
