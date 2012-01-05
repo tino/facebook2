@@ -454,7 +454,8 @@ class Auth(object):
             'client_id': self.app_id,
             'client_secret': self.app_secret,
             'code': code,
-            'redirect_uri': redirect_uri or self.redirect_uri,
+            'redirect_uri': redirect_uri if redirect_uri is not None else \
+                self.redirect_uri,
         }
         url = OAUTH_URL + "?%s" % urllib.urlencode(args)
         log.debug('facebook api call to %s' % url)
