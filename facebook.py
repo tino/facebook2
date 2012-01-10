@@ -380,7 +380,7 @@ class Auth(object):
         If the user is logged in via Facebook, we return a dictionary with
         the keys ``user_id`` and ``access_token``. The former is the user's
         Facebook ID, and the latter can be used to make authenticated requests
-        to the Graph API. If the user is not logged in, we return None.
+        to the Graph API. If the user is not logged in, return an emptry dict.
 
         If ``validate`` is True, a request will be made to Facebook to
         validate that the user is still logged in. In this case, a valid
@@ -392,7 +392,7 @@ class Auth(object):
         """
         cookie = cookies.get("fbsr_" + self.app_id)
         if not cookie:
-            return None
+            return {}
 
         try:
             user_data = self.parse_signed_request(cookie)
