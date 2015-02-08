@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright 2010 Facebook
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -36,20 +34,20 @@ if user:
 
 """
 
+import base64
 import hashlib
 import hmac
-import base64
-import requests
 import json
-import re
+
+import requests
+
+from . import version
 
 try:
     from urllib.parse import parse_qs, urlencode
 except ImportError:
     from urlparse import parse_qs
     from urllib import urlencode
-
-from . import version
 
 
 __version__ = version.__version__
