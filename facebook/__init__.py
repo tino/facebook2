@@ -45,9 +45,9 @@ import requests
 from . import version
 
 try:
-    from urllib.parse import parse_qs, urlencode
+    from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 except ImportError:
-    from urlparse import parse_qs
+    from urlparse import parse_qs, urlsplit, urlunsplit
     from urllib import urlencode
 
 
@@ -311,6 +311,10 @@ class Auth(object):
     def __init__(self, app_id, app_secret, redirect_uri):
         self.app_id = app_id
         self.app_secret = app_secret
+        split_url = list(urlsplit(redirect_uri))
+        if split_url[2] == '':
+            split_url[2] = '/'
+            redirect_uri = urlunsplit(split_url)
         self.redirect_uri = redirect_uri
 
     def get_user_from_cookie(self, cookies, validate=False):
@@ -390,9 +394,9 @@ class Auth(object):
 
         return data
 
-    def auth_url(self, canvas_url, perms=None, **kwargs):
+    def get_auth_url(self, perms=None, **kwargs):
         url = "https://www.facebook.com/dialog/oauth?"
-        kvps = {'client_id': self.app_id, 'redirect_uri': canvas_url}
+        kvps = {'client_id': self.app_id, 'redirect_uri': self.redirect_uri}
         if perms:
             kvps['scope'] = ",".join(perms)
         kvps.update(kwargs)

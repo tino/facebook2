@@ -34,7 +34,8 @@ class FacebookTestCase(unittest.TestCase):
         except KeyError:
             raise Exception("FACEBOOK_APP_ID and FACEBOOK_SECRET "
                             "must be set as environmental variables.")
-        self.auth = facebook.Auth(self.app_id, self.secret, "")
+        self.auth = facebook.Auth(self.app_id, self.secret,
+                                  'https://localhost/facebook/callback/')
 
 
 class TestGetAppAccessToken(FacebookTestCase):
@@ -110,13 +111,11 @@ class TestFQL(FacebookTestCase):
 class TestAuthURL(FacebookTestCase):
     def test_auth_url(self):
         perms = ['email', 'birthday']
-        redirect_url = 'https://localhost/facebook/callback/'
-
         expected_url = 'https://www.facebook.com/dialog/oauth?' + urlencode(
             dict(client_id=self.app_id,
-                 redirect_uri=redirect_url,
+                 redirect_uri=self.auth.redirect_uri,
                  scope=','.join(perms)))
-        actual_url = self.auth.auth_url(redirect_url, perms=perms)
+        actual_url = self.auth.get_auth_url(perms=perms)
 
         # Since the order of the query string parameters might be
         # different in each URL, we cannot just compare them to each
@@ -132,6 +131,22 @@ class TestAuthURL(FacebookTestCase):
         self.assertEqual(actual_url_result.params, expected_url_result.params)
         self.assertEqual(actual_query, expected_query)
 
+    def test_redirect_url_slash_appended(self):
+        """
+        Facebook doesn't like a bare path, so the Auth class should make sure a
+        slash is appended.
+        """
+        auth = facebook.Auth(self.app_id, self.secret, "http://localhost.dev")
+        qs = parse_qs(urlparse(auth.get_auth_url()).query)
+        self.assertEqual(qs['redirect_uri'][0], "http://localhost.dev/")
+        # Urls with a path should be unaltered
+        auth = facebook.Auth(self.app_id, self.secret, "http://localhost.dev/index.html")
+        qs = parse_qs(urlparse(auth.get_auth_url()).query)
+        self.assertEqual(qs['redirect_uri'][0], "http://localhost.dev/index.html")
+        # Querys and fragmenst should be unaltered
+        auth = facebook.Auth(self.app_id, self.secret, "http://localhost.dev?test=1#blaat")
+        qs = parse_qs(urlparse(auth.get_auth_url()).query)
+        self.assertEqual(qs['redirect_uri'][0], "http://localhost.dev/?test=1#blaat")
 
 if __name__ == '__main__':
     unittest.main()
