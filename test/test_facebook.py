@@ -140,13 +140,17 @@ class TestAuthURL(FacebookTestCase):
         qs = parse_qs(urlparse(auth.get_auth_url()).query)
         self.assertEqual(qs['redirect_uri'][0], "http://localhost.dev/")
         # Urls with a path should be unaltered
-        auth = facebook.Auth(self.app_id, self.secret, "http://localhost.dev/index.html")
+        auth = facebook.Auth(self.app_id, self.secret,
+                             "http://localhost.dev/index.html")
         qs = parse_qs(urlparse(auth.get_auth_url()).query)
-        self.assertEqual(qs['redirect_uri'][0], "http://localhost.dev/index.html")
+        self.assertEqual(qs['redirect_uri'][0],
+                         "http://localhost.dev/index.html")
         # Querys and fragmenst should be unaltered
-        auth = facebook.Auth(self.app_id, self.secret, "http://localhost.dev?test=1#blaat")
+        auth = facebook.Auth(self.app_id, self.secret,
+                             "http://localhost.dev?test=1#blaat")
         qs = parse_qs(urlparse(auth.get_auth_url()).query)
-        self.assertEqual(qs['redirect_uri'][0], "http://localhost.dev/?test=1#blaat")
+        self.assertEqual(qs['redirect_uri'][0],
+                         "http://localhost.dev/?test=1#blaat")
 
 if __name__ == '__main__':
     unittest.main()

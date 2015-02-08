@@ -308,7 +308,7 @@ class Auth(object):
     It is setup with the app_id and app_secret.
     """
 
-    def __init__(self, app_id, app_secret, redirect_uri):
+    def __init__(self, app_id, app_secret, redirect_uri, version="2.2"):
         self.app_id = app_id
         self.app_secret = app_secret
         split_url = list(urlsplit(redirect_uri))
@@ -316,6 +316,12 @@ class Auth(object):
             split_url[2] = '/'
             redirect_uri = urlunsplit(split_url)
         self.redirect_uri = redirect_uri
+        # Re-use version checking of the graph api
+        try:
+            GraphAPI(version=version)
+        except GraphAPIError as e:
+            raise AuthError(e)
+        self.version = version
 
     def get_user_from_cookie(self, cookies, validate=False):
         """
@@ -408,7 +414,8 @@ class Auth(object):
                 'client_id': self.app_id,
                 'client_secret': self.app_secret}
 
-        return GraphAPI().request("oauth/access_token", args=args)["access_token"]
+        return GraphAPI(version=self.version).request(
+            "oauth/access_token", args=args)["access_token"]
 
     def get_access_token_from_code(self, code):
         """
@@ -423,7 +430,8 @@ class Auth(object):
             "client_id": self.app_id,
             "client_secret": self.app_secret}
 
-        return GraphAPI().request("oauth/access_token", args)
+        return GraphAPI(version=self.version).request("oauth/access_token",
+                                                      args)
 
     def extend_access_token(self, app_id, app_secret):
         """
@@ -438,4 +446,5 @@ class Auth(object):
             "fb_exchange_token": self.access_token,
         }
 
-        return GraphAPI().request("oauth/access_token", args=args)
+        return GraphAPI(version=self.version).request("oauth/access_token",
+                                                      args=args)
