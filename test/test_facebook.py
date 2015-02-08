@@ -13,9 +13,10 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-import facebook
 import os
 import unittest
+
+import facebook
 
 try:
     from urllib.parse import parse_qs, urlencode, urlparse
@@ -33,6 +34,7 @@ class FacebookTestCase(unittest.TestCase):
         except KeyError:
             raise Exception("FACEBOOK_APP_ID and FACEBOOK_SECRET "
                             "must be set as environmental variables.")
+        self.auth = facebook.Auth(self.app_id, self.secret, "")
 
 
 class TestGetAppAccessToken(FacebookTestCase):
@@ -44,7 +46,7 @@ class TestGetAppAccessToken(FacebookTestCase):
 
     """
     def test_get_app_access_token(self):
-        token = facebook.get_app_access_token(self.app_id, self.secret)
+        token = self.auth.get_app_access_token()
         # Since "unicode" does not exist in Python 3, we cannot check
         # the following line with flake8 (hence the noqa comment).
         assert(isinstance(token, str) or isinstance(token, unicode))    # noqa
@@ -91,8 +93,9 @@ class TestAPIVersion(FacebookTestCase):
 
 class TestFQL(FacebookTestCase):
     def test_fql(self):
-        graph = facebook.GraphAPI(access_token=facebook.get_app_access_token(
-            self.app_id, self.secret), version=2.0)
+        auth = facebook.Auth(self.app_id, self.secret, "")
+        graph = facebook.GraphAPI(access_token=auth.get_app_access_token(),
+                                  version=2.0)
         # Ensure that version is below 2.1. Facebook has stated that FQL is
         # not present in this or future versions of the Graph API.
         if graph.get_version() < 2.1:
@@ -113,7 +116,7 @@ class TestAuthURL(FacebookTestCase):
             dict(client_id=self.app_id,
                  redirect_uri=redirect_url,
                  scope=','.join(perms)))
-        actual_url = facebook.auth_url(self.app_id, redirect_url, perms=perms)
+        actual_url = self.auth.auth_url(redirect_url, perms=perms)
 
         # Since the order of the query string parameters might be
         # different in each URL, we cannot just compare them to each
