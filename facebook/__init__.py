@@ -92,7 +92,7 @@ class GraphAPI(object):
         self.timeout = timeout
 
         if version not in valid_api_versions:
-            raise GraphAPIError("Valid API versions are {}".format(
+            raise GraphAPIError("Valid API versions are {0}".format(
                 ", ".join(valid_api_versions)))
 
         self.version = "v" + version
