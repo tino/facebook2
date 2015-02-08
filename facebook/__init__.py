@@ -85,32 +85,22 @@ class GraphAPI(object):
 
     """
 
-    def __init__(self, access_token=None, timeout=None, version=None):
-        # The default version is only used if the version kwarg does not exist.
-        default_version = "1.0"
-        valid_API_versions = ["1.0", "2.0", "2.1", "2.2"]
+    def __init__(self, access_token=None, timeout=None, version="2.2"):
+        version = str(version)
+        valid_api_versions = ["1.0", "2.0", "2.1", "2.2"]
 
         self.access_token = access_token
         self.timeout = timeout
 
-        if version:
-            version_regex = re.compile("^\d\.\d$")
-            match = version_regex.search(str(version))
-            if match is not None:
-                if str(version) not in valid_API_versions:
-                    raise GraphAPIError("Valid API versions are " +
-                                        str(valid_API_versions).strip('[]'))
-                else:
-                    self.version = "v" + str(version)
-            else:
-                raise GraphAPIError("Version number should be in the"
-                                    " following format: #.# (e.g. 1.0).")
-        else:
-            self.version = "v" + default_version
+        if version not in valid_api_versions:
+            raise GraphAPIError("Valid API versions are {}".format(
+                ", ".join(valid_api_versions)))
+
+        self.version = "v" + version
 
     def get_object(self, id, **args):
         """Fetchs the given object from the graph."""
-        return self.request(self.version + "/" + id, args)
+        return self.request(id, args)
 
     def get_objects(self, ids, **args):
         """Fetchs all of the given object from the graph.
@@ -119,12 +109,11 @@ class GraphAPI(object):
         invalid, we raise an exception.
         """
         args["ids"] = ",".join(ids)
-        return self.request(self.version + "/", args)
+        return self.request(args)
 
     def get_connections(self, id, connection_name, **args):
         """Fetchs the connections for given object."""
-        return self.request(
-            self.version + "/" + id + "/" + connection_name, args)
+        return self.request("{0}/{1}".format(id, connection_name), args)
 
     def put_object(self, parent_object, connection_name, **data):
         """Writes the given object to the graph, connected to the given parent.
@@ -151,10 +140,8 @@ class GraphAPI(object):
 
         """
         assert self.access_token, "Write operations require an access token"
-        return self.request(
-            self.version + "/" + parent_object + "/" + connection_name,
-            post_args=data,
-            method="POST")
+        return self.request("{0}/{1}".format(parent_object, connection_name),
+            post_args=data, method="POST")
 
     def put_wall_post(self, message, attachment={}, profile_id="me"):
         """Writes a wall post to the given profile's wall.
@@ -185,7 +172,7 @@ class GraphAPI(object):
 
     def delete_object(self, id):
         """Deletes the object with the given ID from the graph."""
-        self.request(self.version + "/" + id, method="DELETE")
+        self.request(id, method="DELETE")
 
     def delete_request(self, user_id, request_id):
         """Deletes the Request with the given ID for the given user."""
@@ -200,7 +187,7 @@ class GraphAPI(object):
 
         """
         return self.request(
-            self.version + "/" + album_path,
+            album_path,
             post_args=kwargs,
             files={"source": image},
             method="POST")
@@ -209,19 +196,18 @@ class GraphAPI(object):
         """Fetches the current version number of the Graph API being used."""
         args = {"access_token": self.access_token}
         try:
-            response = requests.request("GET",
-                                        "https://graph.facebook.com/" +
-                                        self.version + "/me",
-                                        params=args,
-                                        timeout=self.timeout)
+            response = requests.get("https://graph.facebook.com/" +
+                self.version, params=args, timeout=self.timeout)
         except requests.HTTPError as e:
-            response = json.loads(e.read())
-            raise GraphAPIError(response)
+            # We expect an Unauthenticated error, as we don't send a token
+            if e.status != 400:
+                response = json.loads(e.read())
+                raise GraphAPIError(response)
 
         try:
             headers = response.headers
             version = headers["facebook-api-version"].replace("v", "")
-            return float(version)
+            return version
         except Exception:
             raise GraphAPIError("API version number not available")
 
@@ -242,10 +228,10 @@ class GraphAPI(object):
             else:
                 args["access_token"] = self.access_token
 
+        url = "https://graph.facebook.com/{0}/{1}".format(self.version, path)
         try:
             response = requests.request(method or "GET",
-                                        "https://graph.facebook.com/" +
-                                        path,
+                                        url,
                                         timeout=self.timeout,
                                         params=args,
                                         data=post_args,
@@ -283,7 +269,9 @@ class GraphAPI(object):
 
         Example query: "SELECT affiliations FROM user WHERE uid = me()"
         """
-        return self.request(self.version + "/" + "fql", {"q": query})
+        if self.version not in ("v1.0", "v2.0"):
+            raise GraphAPIError("Versions later than 2.0 don't support FQL")
+        return self.request("fql", {"q": query})
 
 
 class GraphAPIError(Exception):
