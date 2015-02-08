@@ -85,7 +85,7 @@ class GraphAPI(object):
     """
 
     def __init__(self, access_token=None, timeout=None, version="2.2"):
-        version = str(version)
+        version = str(version)  # backwards compatibility for floats
         valid_api_versions = ["1.0", "2.0", "2.1", "2.2"]
 
         self.access_token = access_token
