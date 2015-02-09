@@ -228,6 +228,13 @@ class GraphAPI(object):
                 args["access_token"] = self.access_token
 
         url = "https://graph.facebook.com/{0}/{1}".format(self.version, path)
+        return self.bare_request(url, args, post_args, files, method)
+
+    def bare_request(self, url, args=None, post_args=None, files=None, method=None):
+        """
+        Request method in which you can use fully formatted urls, like for
+        pagination for example.
+        """
         try:
             response = requests.request(method or "GET",
                                         url,
