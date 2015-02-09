@@ -417,7 +417,7 @@ class Auth(object):
         return GraphAPI(version=self.version).request(
             "oauth/access_token", args=args)["access_token"]
 
-    def get_access_token_from_code(self, code):
+    def get_access_token_from_code(self, code, **kwargs):
         """
         Get an access token from the "code" returned from an OAuth dialog.
 
@@ -428,7 +428,9 @@ class Auth(object):
             "code": code,
             "redirect_uri": self.redirect_uri,
             "client_id": self.app_id,
-            "client_secret": self.app_secret}
+            "client_secret": self.app_secret
+        }
+        args.update(**kwargs)
 
         return GraphAPI(version=self.version).request("oauth/access_token",
                                                       args)
