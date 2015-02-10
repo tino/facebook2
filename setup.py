@@ -9,8 +9,8 @@ setup(
     description='This client library is designed to support the Facebook '
                 'Graph API and the official Facebook JavaScript SDK, which '
                 'is the canonical way to implement Facebook authentication.',
-    author='Facebook',
-    maintainer='Tino de Bruijn',
+    author='Tino de Bruijn',
+    author_email='tinodb@gmail.com',
     url='https://github.com/tino/facebook2',
     license='Apache',
     packages=["facebook"],
