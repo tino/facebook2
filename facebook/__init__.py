@@ -140,7 +140,7 @@ class GraphAPI(object):
         """
         assert self.access_token, "Write operations require an access token"
         return self.request("{0}/{1}".format(parent_object, connection_name),
-            post_args=data, method="POST")
+                            post_args=data, method="POST")
 
     def put_wall_post(self, message, attachment={}, profile_id="me"):
         """Writes a wall post to the given profile's wall.
@@ -195,8 +195,8 @@ class GraphAPI(object):
         """Fetches the current version number of the Graph API being used."""
         args = {"access_token": self.access_token}
         try:
-            response = requests.get("https://graph.facebook.com/" +
-                self.version, params=args, timeout=self.timeout)
+            response = requests.get("https://graph.facebook.com/" + self.version,
+                                    params=args, timeout=self.timeout)
         except requests.HTTPError as e:
             # We expect an Unauthenticated error, as we don't send a token
             if e.status != 400:

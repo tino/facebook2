@@ -8,8 +8,7 @@ install:
   - "pip install flake8 isort"
   - "python setup.py install"
 before_script:
-  - "flake8 facebook"
-  - "flake8 test"
+  - "flake8"
   - "isort -rc -c --dont-skip='__init__.py' facebook/"
 script: python -m test.test_facebook
 env:
