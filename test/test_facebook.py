@@ -99,7 +99,7 @@ class TestFQL(FacebookTestCase):
                                   version=2.0)
         # Ensure that version is below 2.1. Facebook has stated that FQL is
         # not present in this or future versions of the Graph API.
-        if graph.get_version() < 2.1:
+        if graph.get_version() < "2.1":
             # This is a tautology, but we are limited in what information
             # we can retrieve with a proper OAuth access token.
             fql_result = graph.fql(
