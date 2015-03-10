@@ -385,9 +385,13 @@ class Auth(object):
                                            ((4 - len(encoded_sig) % 4) % 4))
             data = base64.urlsafe_b64decode(payload + "=" *
                                             ((4 - len(payload) % 4) % 4))
+
+            # Base64 is decoded to a bytestring, and json.loads below
+            # only takes (unicode) strings in Python3.
+            data = data.decode('utf-8')
         except IndexError:
             raise ValueError('signed_request malformed')
-        except TypeError:
+        except (TypeError, UnicodeDecodeError):
             raise ValueError('signed_request had corrupted payload')
 
         data = json.loads(data)
